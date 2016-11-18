@@ -12,14 +12,14 @@ class Movienamer:
         newdir = self.c('movienamer/move-to')
         if newdir:
             self.newdir = newdir
-            print "Moving renamed files to %s" % newdir
+            print("Moving renamed files to %s" % newdir)
         else:
             self.newdir = None
 
         blacklist = self.c('movienamer/blacklist')
         if blacklist:
             self.blacklist = blacklist
-            print "Loaded blacklist: %s" % ",".join(blacklist)
+            print("Loaded blacklist: %s" % ",".join(blacklist))
         else:
             self.blacklist = []
 
@@ -43,7 +43,7 @@ class Movienamer:
 
         if os.path.exists(self.tmdb_cachefile):
             self.tmdb_cache = pickle.load(open(self.tmdb_cachefile))
-            print "Loaded cache file: %s" % self.tmdb_cachefile
+            print("Loaded cache file: %s" % self.tmdb_cachefile)
         else:
             self.tmdb_cache = {}
 
@@ -76,17 +76,17 @@ class Movienamer:
             index = movie+year
         if index in self.tmdb_cache:
             res = self.tmdb_cache[index]
-            print 'Using cached result'
+            print('Using cached result')
             return res
         else:
-            for i in xrange(attempts):
+            for i in range(attempts):
                 try:
                     movie = movie.encode('utf-8')
                     res = tmdb.search(movie,year)
                     self.tmdb_cache[index] = to_unicode(res)
                     self.save_cache()
                     return res
-                except Exception, e:
+                except Exception as e:
                     raise
 
     def gen_clean_name(self, name):
@@ -183,7 +183,7 @@ class Movienamer:
         """Return the guessed name of a movie file"""
 
         if newdir:
-            print "Moving renamed files to %s" % newdir
+            print("Moving renamed files to %s" % newdir)
 
         if not os.path.exists(f):
             p('\nError: File does not exist "%s"' %f,'red')
@@ -233,7 +233,7 @@ class Movienamer:
         # deal with release year
         if search_year:
             year = search_year
-            print "Using specified date: %s" % year
+            print("Using specified date: %s" % year)
         else:
             year = self.get_date(oldname)
             if type(year) == type([]):
@@ -242,8 +242,8 @@ class Movienamer:
                         'red')
                 return
         if year == None:
-            print 'Can\'t find release date in filename! ' \
-                    'Use --search-year to provide it'
+            print('Can\'t find release date in filename! ' \
+                    'Use --search-year to provide it')
         else:
             # remove year from name for searching purposes
             clean_name = clean_name.replace(year,'')
@@ -252,15 +252,15 @@ class Movienamer:
 
         # fetch results
         if year != None:
-            print 'Searching for "%s" with year %s' % (clean_name, year)
+            print('Searching for "%s" with year %s' % (clean_name, year))
         else:
-            print 'Searching for "%s"' % (clean_name)
+            print('Searching for "%s"' % (clean_name))
         results = self.search(clean_name,year)
 
         if len(results) < 1:
             # no results, retry search without year
             if year != None:
-                print 'Searching again without year'
+                print('Searching again without year')
                 results = self.search(clean_name)
             # no results
             if len(results) < 1:
@@ -279,10 +279,10 @@ class Movienamer:
             url = "http://www.themoviedb.org/movie/%s" % res['id']
             if 'release_date' in res and res['release_date'] != None:
                 release_date = res['release_date'][:4]
-                print "\t%d - %s (%s): %s" % (i+1, title, release_date, url)
+                print("\t%d - %s (%s): %s" % (i+1, title, release_date, url))
             else:
-                print "\t%d - %s: %s" % (i+1, title, url)
-        answer = raw_input("Result?: ")
+                print("\t%d - %s: %s" % (i+1, title, url))
+        answer = input("Result?: ")
         if re.match('[1-9][0-9]*',answer):
             res = results[int(answer)-1]
             if not ('release_date' in res):
@@ -305,9 +305,9 @@ class Movienamer:
                 self.rename(directory, oldname, newname, extensions)
 
 def to_unicode(string):
-    if isinstance(string, basestring):
-        if not isinstance(string, unicode):
-            string = unicode(string, 'utf-8')
+    if isinstance(string, str):
+        if not isinstance(string, str):
+            string = str(string, 'utf-8')
     return string
 
 def p(text, colour=None):
@@ -344,7 +344,7 @@ def main():
     if os.path.exists(config_path):
         config = yaml.safe_load(open(config_path))
     else:
-        print "No config file found"
+        print("No config file found")
         config = None
 
     import argparse
@@ -375,7 +375,7 @@ def main():
     args = parser.parse_args()
 
     if args.recursive and args.search_year:
-        print "Do not use --year and --recursive"
+        print("Do not use --year and --recursive")
         exit(2)
 
     try:
@@ -396,7 +396,7 @@ def main():
         movienamer = Movienamer(config)
         for f in files:
             movienamer.process_file(f,args.move_to,args.search_year)
-    except KeyboardInterrupt, e:
+    except KeyboardInterrupt as e:
         pass
 
 if __name__ == "__main__":

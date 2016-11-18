@@ -1,5 +1,5 @@
-from urllib import urlencode
-from urllib2 import Request, urlopen
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 import json
 
 key = '3e7807c4a01f18298f64662b257d7059'
