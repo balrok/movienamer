@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import os,sys,time
-import re,pickle
+
+import os,sys
+import re
 
 import tmdb
 
@@ -27,25 +28,13 @@ class Movienamer:
         if filetypes:
             self.filetypes = filetypes
         else:
-            self.filetypes = ['avi','mp4','mkv','m4v','mpg','mpeg','iso','ogm']
+            self.filetypes = ['webm', 'avi','mp4','mkv','m4v','mpg','mpeg','iso','ogm','flv']
 
         othertypes = self.c('movienamer/othertypes')
         if othertypes:
             self.othertypes = othertypes
         else:
             self.othertypes = ['srt']
-
-        if self.c('tmdb/cachefile'):
-            self.tmdb_cachefile = self.c('tmdb/cachefile')
-        else:
-            path = '~/.movienamer/searches.cache'
-            self.tmdb_cachefile = os.path.expanduser(path)
-
-        if os.path.exists(self.tmdb_cachefile):
-            self.tmdb_cache = pickle.load(open(self.tmdb_cachefile))
-            print("Loaded cache file: %s" % self.tmdb_cachefile)
-        else:
-            self.tmdb_cache = {}
 
     def c(self, key):
         if not self.config:
@@ -60,34 +49,20 @@ class Movienamer:
         except:
             return None
 
-    def save_cache(self):
-        folder = os.path.dirname(self.tmdb_cachefile)
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
-        pickle.dump(self.tmdb_cache, open(self.tmdb_cachefile,'w'))
 
     def search(self, movie, year=None):
         attempts = 3
-        backoff = 5
 
         if year == None:
             index = movie
         else:
             index = movie+year
-        if index in self.tmdb_cache:
-            res = self.tmdb_cache[index]
-            print('Using cached result')
-            return res
-        else:
-            for i in range(attempts):
-                try:
-                    movie = movie.encode('utf-8')
-                    res = tmdb.search(movie,year)
-                    self.tmdb_cache[index] = to_unicode(res)
-                    self.save_cache()
-                    return res
-                except Exception as e:
-                    raise
+        movie = movie.encode('utf-8')
+        for i in range(attempts):
+            try:
+                return tmdb.search(movie,year)
+            except Exception as e:
+                raise e
 
     def gen_clean_name(self, name):
         name = name.lower()
@@ -102,6 +77,8 @@ class Movienamer:
         # only remove a dash if there is whitespace on
         # at least one side of it
         name = re.sub('( -|- )',' ',name)
+        # remove cdX at the end
+        name = re.sub(' cd[0-9]','',name)
 
         # remove blaclisted words
         for i in self.blacklist:
@@ -110,10 +87,9 @@ class Movienamer:
             if i in name:
                 name = name.partition(i)[0]
 
-        # tidy up dulpicate spaces
+        # tidy up duplicate spaces
         name = re.sub(' +',' ',name)
         name = name.strip()
-
         return name
 
     def get_date(self, oldname):
@@ -163,6 +139,8 @@ class Movienamer:
         if newdir == "":
             newdir = olddir
 
+        newdir = os.path.join(newdir, newname)
+
         if oldname == newname and olddir == newdir:
             p('New and old names match. No renaming required','green')
             return
@@ -176,8 +154,21 @@ class Movienamer:
         for i in extensions:
             old='%s.%s' % (oldname, i)
             new='%s.%s' % (newname, i.lower())
-            p("Renaming '%s' -> '%s'" % (old,new), 'green')
-            os.rename(os.path.join(olddir,old),os.path.join(newdir,new))
+
+            if not os.path.exists(newdir):
+                os.makedirs(newdir)
+
+            # when the movie is MovieTitle cd1.ext
+            cdNames = [' cd1', ' cd2', ' cd3', ' cd4', ' cd5']
+            cdPart = os.path.splitext(old)[0][-4:]
+            if cdPart in cdNames:
+                if os.path.isfile(os.path.join(olddir,old)):
+                    newMove = new[:-4] + cdPart + new[-4:]
+                    p("Renaming '%s' -> '%s'" % (old,new), 'green')
+                    os.rename(os.path.join(olddir,old),os.path.join(newdir,newMove))
+            else:
+                p("Renaming '%s' -> '%s'" % (old,new), 'green')
+                os.rename(os.path.join(olddir,old),os.path.join(newdir,new))
 
     def process_file(self, f, newdir=None, search_year=None):
         """Return the guessed name of a movie file"""
@@ -271,8 +262,7 @@ class Movienamer:
                 and newdir == None \
                 and self.prepare_name(oldname) == self.build_name( \
                 results[0]['title'],results[0]['release_date'][:4]):
-            p('First result matches current name, skipping renaming','green')
-            return
+            p('First result matches current name, still rename','green')
 
         for i, res in enumerate(results):
             title = res['title']
@@ -283,6 +273,8 @@ class Movienamer:
             else:
                 print("\t%d - %s: %s" % (i+1, title, url))
         answer = input("Result?: ")
+        if answer == "":
+            answer = "1"
         if re.match('[1-9][0-9]*',answer):
             res = results[int(answer)-1]
             if not ('release_date' in res):
@@ -322,11 +314,11 @@ def p(text, colour=None):
     }
     if colour != None:
         sys.stdout.write('\033[1;%sm' % (colours[colour]))
-        sys.stdout.write(text.encode('utf-8'))
+        sys.stdout.write(text)
         sys.stdout.write('\033[1;m')
     else:
         sys.stdout.write('\033[1;m')
-        sys.stdout.write(text.encode('utf-8'))
+        sys.stdout.write(text)#.encode('utf-8'))
     sys.stdout.write('\n')
 
 def splitter(word, separators):
@@ -339,13 +331,19 @@ def splitter(word, separators):
     return word
 
 def main():
-    import yaml
-    config_path = os.path.expanduser('~/.movienamer/config.yaml')
-    if os.path.exists(config_path):
-        config = yaml.safe_load(open(config_path))
-    else:
-        print("No config file found")
+    try:
+        import yaml
+    except:
+        print("If you want to use a config install yaml")
         config = None
+        pass
+    else:
+        config_path = os.path.expanduser('~/.movienamer/config.yaml')
+        if os.path.exists(config_path):
+            config = yaml.safe_load(open(config_path))
+        else:
+            print("No config file found")
+            config = None
 
     import argparse
     parser = argparse.ArgumentParser(description='Correctly Name Movie files')
@@ -396,7 +394,7 @@ def main():
         movienamer = Movienamer(config)
         for f in files:
             movienamer.process_file(f,args.move_to,args.search_year)
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt:
         pass
 
 if __name__ == "__main__":

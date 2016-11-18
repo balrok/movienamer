@@ -1,3 +1,15 @@
+# Fork of Movienamer2
+
+## Changes:
+
+* This version works with python3
+* If your move is named "james bond cd1.mp4" it will be put into "james bond (2008)/james bond (2008) cd1.mp4"
+* Removed cache: i mean the amount of requests is minimal and if tmdb has an error online, you fix it and want to redownload, the cache is in your way
+    * if this should be really implemented use `filecache`
+* pressing enter will accept first result
+* added more file extensions
+
+
 # MovieNamer2 #
 
 (c) 2010-current GNU GPL v3
